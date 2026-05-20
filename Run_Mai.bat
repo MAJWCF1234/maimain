@@ -51,7 +51,7 @@ if "%PYTHON%"=="" (
     exit /b 1
 )
 :found_python
-echo [1/4] Using Python: %PYTHON%
+echo [1/5] Using Python: %PYTHON%
 if exist "%PYTHON%" (
     "%PYTHON%" --version 2>nul
     if errorlevel 1 (
@@ -63,28 +63,46 @@ if exist "%PYTHON%" (
 echo.
 
 :: --- 2. Install/upgrade dependencies (root) ---
-echo [2/4] Installing/upgrading dependencies...
-if exist "%~dp0requirements.txt" (
-    "%PYTHON%" -m pip install -q -r "%~dp0requirements.txt" --upgrade 2>nul
+echo [2/5] Installing/upgrading dependencies...
+set "PIP_OK=1"
+if exist "%PYTHON%" (
+    "%PYTHON%" -m pip --version >nul 2>&1
     if errorlevel 1 (
-        "%PYTHON%" -m pip install -r "%~dp0requirements.txt" --upgrade
+        echo      WARNING: pip is unavailable for this Python interpreter.
+        set "PIP_OK=0"
+    )
+) else (
+    set "PIP_OK=0"
+)
+if exist "%~dp0requirements.txt" (
+    if "%PIP_OK%"=="1" (
+        "%PYTHON%" -m pip install -q -r "%~dp0requirements.txt" --upgrade 2>nul
+        if errorlevel 1 (
+            "%PYTHON%" -m pip install -r "%~dp0requirements.txt" --upgrade
+        ) else (
+            echo      requirements.txt OK.
+        )
     ) else (
-        echo      requirements.txt OK.
+        echo      Skipped requirements.txt because pip is unavailable.
     )
 ) else (
     echo      No requirements.txt in root; skipping.
 )
 if exist "%~dp0Newtype\requirements.txt" (
-    "%PYTHON%" -m pip install -q -r "%~dp0Newtype\requirements.txt" --upgrade 2>nul
-    if errorlevel 1 (
-        "%PYTHON%" -m pip install -r "%~dp0Newtype\requirements.txt" --upgrade
+    if "%PIP_OK%"=="1" (
+        "%PYTHON%" -m pip install -q -r "%~dp0Newtype\requirements.txt" --upgrade 2>nul
+        if errorlevel 1 (
+            "%PYTHON%" -m pip install -r "%~dp0Newtype\requirements.txt" --upgrade
+        )
+        echo      Newtype\requirements.txt OK.
+    ) else (
+        echo      Skipped Newtype\requirements.txt because pip is unavailable.
     )
-    echo      Newtype\requirements.txt OK.
 )
 echo.
 
 :: --- 3. Utilities: ensure folders and files ---
-echo [3/4] Utilities (folders, training)... 
+echo [3/5] Utilities (folders, training)... 
 set "TRAIN_DIR=%~dp0training"
 if not defined TRAIN_DIR set "TRAIN_DIR=training"
 if "%TRAIN_DIR%"=="training" set "TRAIN_DIR=%SCRIPT_PATH%training"
@@ -113,20 +131,35 @@ set "STANDALONE_APP=%~dp0standalone_frontend"
 if exist "%STANDALONE_APP%\main.js" (
     if not exist "%STANDALONE_APP%\node_modules\electron\dist\electron.exe" (
         set "NPM_CMD="
+        set "NODE_OK=0"
+        where node >nul 2>&1 && set "NODE_OK=1"
         where npm >nul 2>&1 && set "NPM_CMD=npm"
         if not defined NPM_CMD where npm.cmd >nul 2>&1 && set "NPM_CMD=npm.cmd"
-        if defined NPM_CMD (
+        if "%NODE_OK%"=="1" if defined NPM_CMD (
             echo      Electron runtime missing. Installing frontend dependencies...
             pushd "%STANDALONE_APP%" 2>nul && (
-                call !NPM_CMD! install
+                if exist "%STANDALONE_APP%\package-lock.json" (
+                    call !NPM_CMD! ci
+                ) else (
+                    call !NPM_CMD! install
+                )
                 popd 2>nul
             ) || (
                 cd /d "%STANDALONE_APP%" 2>nul
-                call !NPM_CMD! install
+                if exist "%STANDALONE_APP%\package-lock.json" (
+                    call !NPM_CMD! ci
+                ) else (
+                    call !NPM_CMD! install
+                )
+            )
+            if exist "%STANDALONE_APP%\node_modules\electron\dist\electron.exe" (
+                echo      Electron runtime installed.
+            ) else (
+                echo      WARNING: Frontend dependency install finished, but electron.exe is still missing.
             )
         ) else (
-            echo      WARNING: npm not found. Cannot auto-install Electron runtime.
-            echo      Install Node.js (includes npm), then rerun this launcher.
+            echo      WARNING: Node.js and/or npm not found. Cannot auto-install Electron runtime.
+            echo      Install Node.js LTS (includes npm), then rerun this launcher.
         )
     ) else (
         echo      Standalone runtime present.
