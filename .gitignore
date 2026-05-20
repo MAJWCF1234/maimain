@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual envs
+venv/
+.venv/
+
+# Node/Electron
+node_modules/
+standalone_frontend/node_modules/
+
+# Runtime/state files
+*.db
+*.db-shm
+*.db-wal
+*.invalid.*
+
+# App data folders
+.standalone_user_data/
+conversations/
+brain_backup_*/
+brain_data/
+
+# Local diagnostics/temp
+_*.py
