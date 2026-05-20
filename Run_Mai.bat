@@ -135,31 +135,36 @@ if exist "%STANDALONE_APP%\main.js" (
         where node >nul 2>&1 && set "NODE_OK=1"
         where npm >nul 2>&1 && set "NPM_CMD=npm"
         if not defined NPM_CMD where npm.cmd >nul 2>&1 && set "NPM_CMD=npm.cmd"
-        if "%NODE_OK%"=="1" if defined NPM_CMD (
-            echo      Electron runtime missing. Installing frontend dependencies...
-            pushd "%STANDALONE_APP%" 2>nul && (
-                if exist "%STANDALONE_APP%\package-lock.json" (
-                    call !NPM_CMD! ci
-                ) else (
-                    call !NPM_CMD! install
+        if "%NODE_OK%"=="1" (
+            if defined NPM_CMD (
+                echo      Electron runtime missing. Installing frontend dependencies...
+                pushd "%STANDALONE_APP%" 2>nul && (
+                    if exist "%STANDALONE_APP%\package-lock.json" (
+                        call !NPM_CMD! ci
+                    ) else (
+                        call !NPM_CMD! install
+                    )
+                    popd 2>nul
+                ) || (
+                    cd /d "%STANDALONE_APP%" 2>nul
+                    if exist "%STANDALONE_APP%\package-lock.json" (
+                        call !NPM_CMD! ci
+                    ) else (
+                        call !NPM_CMD! install
+                    )
                 )
-                popd 2>nul
-            ) || (
-                cd /d "%STANDALONE_APP%" 2>nul
-                if exist "%STANDALONE_APP%\package-lock.json" (
-                    call !NPM_CMD! ci
+                if exist "%STANDALONE_APP%\node_modules\electron\dist\electron.exe" (
+                    echo      Electron runtime installed.
                 ) else (
-                    call !NPM_CMD! install
+                    echo      WARNING: Frontend dependency install finished, but electron.exe is still missing.
                 )
-            )
-            if exist "%STANDALONE_APP%\node_modules\electron\dist\electron.exe" (
-                echo      Electron runtime installed.
             ) else (
-                echo      WARNING: Frontend dependency install finished, but electron.exe is still missing.
+                echo      WARNING: npm not found. Cannot auto-install Electron runtime.
+                echo      Install Node.js LTS with npm, then rerun this launcher.
             )
         ) else (
-            echo      WARNING: Node.js and/or npm not found. Cannot auto-install Electron runtime.
-            echo      Install Node.js LTS (includes npm), then rerun this launcher.
+            echo      WARNING: Node.js not found. Cannot auto-install Electron runtime.
+            echo      Install Node.js LTS with npm, then rerun this launcher.
         )
     ) else (
         echo      Standalone runtime present.
