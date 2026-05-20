@@ -107,10 +107,38 @@ if not exist "%INIT_KNOW%" (
 echo      Done.
 echo.
 
-:: --- 4. Launch standalone app (fallback to desktop shell) ---
+:: --- 4. Ensure standalone frontend dependencies (best-effort) ---
+echo [4/5] Checking standalone frontend runtime...
+set "STANDALONE_APP=%~dp0standalone_frontend"
+if exist "%STANDALONE_APP%\main.js" (
+    if not exist "%STANDALONE_APP%\node_modules\electron\dist\electron.exe" (
+        set "NPM_CMD="
+        where npm >nul 2>&1 && set "NPM_CMD=npm"
+        if not defined NPM_CMD where npm.cmd >nul 2>&1 && set "NPM_CMD=npm.cmd"
+        if defined NPM_CMD (
+            echo      Electron runtime missing. Installing frontend dependencies...
+            pushd "%STANDALONE_APP%" 2>nul && (
+                call !NPM_CMD! install
+                popd 2>nul
+            ) || (
+                cd /d "%STANDALONE_APP%" 2>nul
+                call !NPM_CMD! install
+            )
+        ) else (
+            echo      WARNING: npm not found. Cannot auto-install Electron runtime.
+            echo      Install Node.js (includes npm), then rerun this launcher.
+        )
+    ) else (
+        echo      Standalone runtime present.
+    )
+) else (
+    echo      standalone_frontend\main.js not found; skipping frontend dependency check.
+)
+echo.
+
+:: --- 5. Launch standalone app (fallback to desktop shell) ---
 set "EXIT_CODE=0"
 for %%I in ("%~dp0..") do set "WORKSPACE_ROOT=%%~fI"
-set "STANDALONE_APP=%~dp0standalone_frontend"
 set "ELECTRON_EXE="
 
 if defined MAI_FRONTEND_ELECTRON if exist "%MAI_FRONTEND_ELECTRON%" set "ELECTRON_EXE=%MAI_FRONTEND_ELECTRON%"
@@ -123,7 +151,7 @@ echo WARNING: Standalone frontend runtime not available. Falling back to Qt desk
 goto :launch_desktop
 
 :launch_standalone
-echo [4/4] Launching Mai Standalone...
+echo [5/5] Launching Mai Standalone...
 echo.
 set "MAI_BACKEND_PYTHON=%PYTHON%"
 set "MAI_WORKSPACE_ROOT=%WORKSPACE_ROOT%"
@@ -145,7 +173,7 @@ if not exist "%~dp0mai_phoenix_desktop.py" (
     set "EXIT_CODE=1"
     goto :launch_done
 )
-echo [4/4] Booting Mai Phoenix Desktop...
+echo [5/5] Booting Mai Phoenix Desktop...
 echo.
 pushd "%~dp0" 2>nul && (
   "%PYTHON%" "%~dp0mai_phoenix_desktop.py"
